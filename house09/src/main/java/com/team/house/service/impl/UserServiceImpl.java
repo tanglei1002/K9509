@@ -1,0 +1,85 @@
+package com.team.house.service.impl;
+
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.team.house.entity.Users;
+import com.team.house.entity.UsersExample;
+import com.team.house.mapper.UsersMapper;
+import com.team.house.service.UserService;
+import com.team.until.MD5Utils;
+import com.team.until.UserCondition;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * @author 王建兵
+ * @Classname UserServiceImpl
+ * @Description TODO
+ * @Date 2019/12/24 10:38
+ * @Created by Administrator
+ */
+@Service
+public class UserServiceImpl implements UserService {
+    @Autowired
+    private UsersMapper usersMapper;
+
+    @Override
+    public PageInfo<Users> getUserByPage(UserCondition condition) {
+        PageHelper.startPage(condition.getPage(),condition.getRows());
+        //查询所有用户
+        UsersExample usersExample = new UsersExample();
+        //封装条件
+        UsersExample.Criteria criteria=usersExample.createCriteria();
+        //动态sql:一个属性一个判断
+        if(condition.getName()!=null)
+            criteria.andNameLike("%"+condition.getName()+"%");
+        if(condition.getTel()!=null)
+            criteria.andTelephoneLike("%"+condition.getTel()+"%");
+        List<Users> list=usersMapper.selectByExample(usersExample);
+        return new PageInfo<>(list);
+    }
+
+    @Override
+    public boolean checkUname(String name) {
+       UsersExample usersExample = new UsersExample();
+       UsersExample.Criteria criteria = usersExample.createCriteria();
+       //添加条件
+        criteria.andIsadminEqualTo(new Integer("0"));
+        criteria.andNameEqualTo(name);
+        List<Users> list = usersMapper.selectByExample(usersExample);
+        if (list!=null&&list.size()!=0){
+            return false;
+        }else
+        return true;
+    }
+
+    @Override
+    public Integer addUser(Users users) {
+        //出于系统用户安全考虑_对密码进行加密码
+        //使用MD5工具类对密码加密
+        System.out.println("未加密的密码:"+ users.getPassword());
+        String newPassword= MD5Utils.md5Encrypt(users.getPassword());
+        System.out.println("加密的密码:"+ newPassword);
+        users.setPassword(newPassword);
+        //设置户东用户
+        users.setIsadmin(0);
+        return usersMapper.insertSelective(users);
+    }
+
+    @Override
+    public Users login(String username, String password) {
+        UsersExample usersExample = new UsersExample();
+        UsersExample.Criteria criteria = usersExample.createCriteria();
+        //添加条件
+        criteria.andIsadminEqualTo(new Integer("0"));
+        criteria.andNameEqualTo(username);
+        criteria.andPasswordEqualTo(password);
+        List<Users> list = usersMapper.selectByExample(usersExample);
+        if (list!=null&&list.size()>0){
+            return list.get(0);
+        }
+        return null;
+    }
+}
